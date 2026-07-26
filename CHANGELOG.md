@@ -1,37 +1,56 @@
-## [5.7.0-dev.1](https://github.com/banter240/tado_hijack/compare/v5.6.1-dev.1...v5.7.0-dev.1) (2026-06-01)
+## [5.7.1-dev.1](https://github.com/banter240/tado_hijack/compare/v5.7.0...v5.7.1-dev.1) (2026-07-10)
+* fix(full_cloud): guard Tado X in TadoAirConditioning for fan/swing and hvac_mode
 
-### ✨ New Features
+In Full Cloud Mode on Tado X, TadoAirConditioning is the unified entity for all zones.
 
+- fan_modes/swing_modes return None for GEN_X (no capabilities endpoint)
+- _get_active_hvac_mode returns HEAT for GEN_X (all zones are heating)
+- supported_features limited for GEN_X (no FAN/SWING)
+- hvac_modes set to [OFF, HEAT, AUTO] for GEN_X (matching TadoHeating)
+
+Prevents event loop crash during setup and incorrect 'cooling' action on heating zones.
+
+Also improves service call diagnostics:
+- Added debug logs when entering service handlers (manual_poll, set_mode, set_mode_all_zones, set_water_heater_mode).
+- Warnings now include the service name (e.g. "(service: manual_poll)").
+- Better messages in async_add_meter_reading for Tado X and general failures (permission/subscription hints).
+
+See https://github.com/banter240/tado_hijack/discussions/113
+
+* chore: target Python 3.14 across the board
+
+Align the integration with Home Assistant's current Python 3.14 requirement.
+
+- pyproject.toml: python = "^3.14", mypy python_version = "3.14", ruff target-version = "py314"
+- .github/workflows/lint.yml: python-version 3.14
+- Updated and pinned dev tooling: mypy==2.1.0 (native PEP 695 support, no more --enable-incomplete-feature), ruff==0.15.20, pre-commit==4.6.0, updated pytest stack
+- .pre-commit-config.yaml: updated hook revisions, mypy hook now pins exact mypy==2.1.0 + tadoasync==0.2.2; removed --disable-error-code and --no-warn-unused-ignores
+- hacs.json + pyproject: minimum homeassistant pinned to "2026.3"
+- requirements.txt synced with dev dependencies
+- Replaced remaining # type: ignore[method-assign] / [union-attr] etc. with cast(Any, ...) for monkey-patches (lib/patches.py) and dynamic attributes (coordinator.py + related)
+- Minor ruff-driven cleanups (logging, exception syntax, etc.)
+
+All local on ai/dev.
+
+## [5.7.0](https://github.com/banter240/tado_hijack/compare/v5.6.0...v5.7.0) (2026-06-30)
 * feat(tadox): add Tado X hot water support (auto/off only via Hops) with central guards
 
 Adds support for the domesticHotWater programmer on Tado X devices using the Hops endpoints (resumeSchedule + boost for forced off).
 
-- Hot water exposed as virtual zone with reserved high ID (9001)
-- TadoHotWaterX entity limited to auto/off (no temperature control)
-- Safe fetching with 404 caching
-- Dedicated coordinator paths with optimistic updates
-- All set hot water operations correctly detect and route TadoX (9001 + test dummy 9997)
-- Central redundancy_checker for hot water (v3 + TadoX through same guards)
-- Central overlay_validator for TadoX hot water Hops calls
-- _is_tadox_hot_water_zone helper for consistent routing
-
-Hops programmer paths are fundamentally different from v3 overlays, so all operations go through the dedicated endpoints and central guard infrastructure.
-
-## [5.6.1-dev.1](https://github.com/banter240/tado_hijack/compare/v5.6.0...v5.6.1-dev.1) (2026-05-31)
-
-### 🐛 Bug Fixes
-
-* fix(ac): include required 'light' field for AIR_CONDITIONING overlays on supported devices
-
-Some V3 AC units declare a "light" capability per operating mode. Sending
-overlays without this field resulted in 422 "setting.notSupported" errors
-from the Tado API when changing fan speed, swing or mode.
-
-We now populate the light field from capabilities (when present) in
-TadoV3ActionProvider, following the same approach used for fan and swing
-fields. The FAN mode path in the climate entity is updated accordingly.
+The changes also address AIR_CONDITIONING overlays where some V3 AC units declare a "light" capability per operating mode. Sending overlays without this field resulted in 422 "setting.notSupported" errors from the Tado API when changing fan speed, swing or mode. The light field is now populated from capabilities (when present) in TadoV3ActionProvider, following the same approach used for fan and swing fields. The FAN mode path in the climate entity is updated accordingly.
 
 Fixes #105.
+
+- Hot water exposed as virtual zone with reserved high ID (9001) instead of magic 0 to avoid truthiness and collision issues
+- TadoHotWaterX entity limited to auto/off (no temperature control)
+- Safe fetching with 404 caching to prevent repeated API calls on devices without hot water hardware installed
+- Dedicated coordinator paths with optimistic updates for the Tado X specific operations
+- All set hot water operations (auto, off, heat) correctly detect and route for TadoX real (9001) and test dummy (9997)
+- Central redundancy_checker for hot water (v3 + TadoX through same guards)
+- Central overlay_validator for TadoX hot water Hops calls
+- _is_tadox_hot_water_zone helper for consistent detection
+
+Hops programmer paths are fundamentally different from v3 overlays, so all operations must use the dedicated endpoints and go through the central guard infrastructure.
 
 ## [5.6.0](https://github.com/banter240/tado_hijack/compare/v5.5.0...v5.6.0) (2026-05-19)
 
