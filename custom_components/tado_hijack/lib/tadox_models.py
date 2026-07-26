@@ -215,18 +215,11 @@ class HopsRoomSnapshot(BaseModel):
     devices: list[TadoXDevice]
 
 
-class HomePresence(BaseModel):
-    """Model for home presence information."""
-
-    presence: str  # "HOME", "AWAY", etc.
-
-
 class HopsRoomsAndDevicesResponse(BaseModel):
     """Model for full roomsAndDevices response."""
 
     rooms: list[HopsRoomSnapshot]
     other_devices: list[TadoXDevice] = Field(alias="otherDevices")
-    home: HomePresence | None = None  # Presence information
 
 
 class _HotWaterSetting:
@@ -241,6 +234,11 @@ class TadoXHotWaterState(BaseModel):
     next_state_change: str | None = Field(None, alias="nextStateChange")
     setpoint: Any | None = None
     setpoint_constraints: Any | None = Field(None, alias="setpointConstraints")
+
+    @property
+    def is_controllable(self) -> bool:
+        """True when state is a real programmer mode (not empty / NONE)."""
+        return (self.state or "").strip().upper() not in ("", "NONE")
 
     @property
     def overlay_active(self) -> bool:
